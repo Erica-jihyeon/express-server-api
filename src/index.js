@@ -31,14 +31,14 @@ db.connect()
 .catch(err => console.error('db connection error', err.stack));
 
 // database test
-// const testQuery = `SELECT id, first_name FROM users`;
-// db.query(testQuery)
-//     .then((result) => {
-//       console.log(result.rows);
-//     })
-//     .catch((err) => {
-//       console.log(err.message)
-//     })
+const testQuery = `SELECT id, first_name FROM users`;
+db.query(testQuery)
+    .then((result) => {
+      console.log(`db test: ${result.rows}`);
+    })
+    .catch((err) => {
+      console.log(err.message)
+    })
 
 
 
