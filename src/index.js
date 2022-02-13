@@ -9,40 +9,18 @@ const bodyParser = require("body-parser");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cookieSession = require('cookie-session');
+const { Pool } = require('pg');
+
 const io = require("socket.io")(server, {
   cors: {
-    origin: `http://localhost:${port}`,
+    //where the request is coming from
+    //origin: 'http://localhost:3002' or '*'
+    origin: `*`,
     credentials: true,
   },
 });
 
-
-const { Pool } = require('pg');
-const db = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT
-});
-
-db.connect()
-.then(() => console.log('db connected'))
-.catch(err => console.error('db connection error', err.stack));
-
-// database test
-const testQuery = `SELECT id, first_name FROM users`;
-db.query(testQuery)
-    .then((result) => {
-      console.log(`db test: ${result.rows}`);
-    })
-    .catch((err) => {
-      console.log(err.message)
-    })
-
-
-
-app.use(cors({ origin: `http://localhost:${port}`, credentials: true }));
+app.use(cors({ origin: `*`, credentials: true }));
 app.use(helmet());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
@@ -52,11 +30,31 @@ app.use(cookieSession({
   keys: ['this is the key', 'key2']
 }));
 
-// Now all routes & middleware will have access to req.io
-// app.use((req, res, next) => {
-//   req.io = io;
-//   return next();
-// });
+
+
+
+const db = new Pool({
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT
+});
+
+db.connect()
+  .then(() => console.log('db connected'))
+  .catch(err => console.error('db connection error', err.stack));
+
+// database test
+// const testQuery = `SELECT id, first_name FROM users`;
+// db.query(testQuery)
+//     .then((result) => {
+//       console.log(`db test: ${result.rows}`);
+//     })
+//     .catch((err) => {
+//       console.log(err.message)
+//     })
+
 
 
 //login
@@ -72,8 +70,38 @@ const test = require("./routes/test");
 
 app.use("/test", test(db, io));
 
-server.listen(port, function() {
-  console.log(`Listening on http://localhost: ${port}`);
+
+
+
+io.on('connection', (socket) => {
+  // socket is the object of the current connected client
+
+  //socket.emit => to current connected client
+  //io.emit => to all clients
+  io.sockets.emit('usercount', io.engine.clientsCount);
+  console.log(io.engine.clientsCount);
+
+  socket.on('message', ({ name, message }) => {
+    console.log('Message received: ' + message);
+    io.sockets.emit('message', ({ name, message }))
+    // socket.emit('message', ({ name, message }))
+  })
+
+  // get the message
+  // socket.on('message', (msg) => {
+  //     console.log('Message received: ' + msg);
+  //     // send message to all sockets
+  //     io.emit('message', msg);
+  // });
+
+
+  socket.on('disconnect', function () {
+    console.log('user disconnected')
+    //update user count
+    io.emit('usercount', io.engine.clientsCount);
+  })
 });
 
-// module.exports = { db, io }
+server.listen(port, function () {
+  console.log(`Listening on http://localhost: ${port}`);
+});
